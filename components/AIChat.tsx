@@ -1,12 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MessageSquare, Send, X, Bot, Loader2, Sparkles, Settings, Save, Key } from 'lucide-react';
+import { MessageSquare, Send, X, Bot, Loader2, Sparkles, Settings, Save, Cpu } from 'lucide-react';
 import { ChatMessage } from '../types';
-import { sendMessageToAI, configureAI, loadConfig } from '../services/geminiService';
+import { sendMessageToAI, configureModel, loadConfig, AVAILABLE_MODELS } from '../services/geminiService';
 
 const AIChat: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([
-    { role: 'model', text: '你好！我是星际助手。想了解林逸尘的什么信息？' }
+    { role: 'model', text: '你好！我是孔寅的智能助手。有什么关于嵌入式开发或 AI 的问题可以问我！' }
   ]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -14,7 +14,6 @@ const AIChat: React.FC = () => {
   
   // Settings State
   const [showSettings, setShowSettings] = useState(false);
-  const [apiKey, setApiKey] = useState('');
   const [model, setModel] = useState('');
 
   const scrollToBottom = () => {
@@ -25,27 +24,16 @@ const AIChat: React.FC = () => {
     scrollToBottom();
   }, [messages, isOpen, showSettings]);
 
-  // Load config on mount or open
+  // Load config on mount
   useEffect(() => {
     const config = loadConfig();
-    setApiKey(config.apiKey);
     setModel(config.model);
-    // If opened and no key is configured, show settings automatically
-    if (isOpen && !config.apiKey) {
-      setShowSettings(true);
-    }
-  }, [isOpen]);
+  }, []);
 
   const handleSaveSettings = () => {
-    configureAI(apiKey, model);
+    configureModel(model);
     setShowSettings(false);
-    if (apiKey) {
-        setMessages(prev => {
-            // Avoid duplicate system messages
-            if (prev[prev.length - 1].text === '配置已更新，我们可以开始对话了。') return prev;
-            return [...prev, {role: 'model', text: '配置已更新，我们可以开始对话了。'}];
-        });
-    }
+    setMessages(prev => [...prev, {role: 'model', text: `已切换模型为: ${AVAILABLE_MODELS.find(m => m.id === model)?.name || model}`}]);
   };
 
   const handleSend = async () => {
@@ -62,9 +50,6 @@ const AIChat: React.FC = () => {
     } catch (error: any) {
       const errorMessage = error.message || "系统繁忙，请稍后再试。";
       setMessages(prev => [...prev, { role: 'model', text: errorMessage }]);
-      if (errorMessage.includes("API Key")) {
-        setShowSettings(true);
-      }
     } finally {
       setIsLoading(false);
     }
@@ -89,7 +74,7 @@ const AIChat: React.FC = () => {
                 <button 
                     onClick={() => setShowSettings(!showSettings)} 
                     className={`p-1.5 rounded-full hover:bg-white/10 transition-colors ${showSettings ? 'bg-white/20' : ''}`}
-                    title="设置 API Key"
+                    title="切换模型"
                 >
                     <Settings size={18} className="text-white" />
                 </button>
@@ -106,33 +91,33 @@ const AIChat: React.FC = () => {
                 // Settings Panel
                 <div className="absolute inset-0 bg-slate-800 p-6 flex flex-col gap-4 animate-fade-in z-10">
                     <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                        <Key size={18} className="text-indigo-400"/> 配置 AI 服务
+                        <Cpu size={18} className="text-indigo-400"/> 模型设置
                     </h3>
                     <p className="text-sm text-gray-400">
-                        请输入您的硅基流动 (SiliconFlow) API Key 以启用对话功能。
+                        您可以自由选择不同的 AI 模型来获得最佳的对话体验。
                     </p>
-                    
-                    <div className="space-y-2">
-                        <label className="text-xs font-semibold text-gray-400 uppercase">API Key</label>
-                        <input 
-                            type="password" 
-                            value={apiKey}
-                            onChange={(e) => setApiKey(e.target.value)}
-                            placeholder="sk-..."
-                            className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:border-indigo-500 outline-none"
-                        />
-                    </div>
 
                     <div className="space-y-2">
-                        <label className="text-xs font-semibold text-gray-400 uppercase">Model</label>
-                        <input 
-                            type="text" 
-                            value={model}
-                            onChange={(e) => setModel(e.target.value)}
-                            placeholder="deepseek-ai/DeepSeek-V3"
-                            className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:border-indigo-500 outline-none"
-                        />
-                        <p className="text-xs text-gray-500">默认: deepseek-ai/DeepSeek-V3</p>
+                        <label className="text-xs font-semibold text-gray-400 uppercase">选择模型</label>
+                        <div className="relative">
+                            <select 
+                                value={model}
+                                onChange={(e) => setModel(e.target.value)}
+                                className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-3 text-white text-sm focus:border-indigo-500 outline-none appearance-none cursor-pointer hover:bg-slate-800 transition-colors"
+                            >
+                                {AVAILABLE_MODELS.map(m => (
+                                    <option key={m.id} value={m.id}>{m.name}</option>
+                                ))}
+                            </select>
+                            <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none text-gray-400">
+                                <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                </svg>
+                            </div>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-2">
+                            DeepSeek-R1 擅长复杂推理，DeepSeek-V3 响应速度更快。
+                        </p>
                     </div>
 
                     <div className="mt-auto pt-4">
@@ -140,7 +125,7 @@ const AIChat: React.FC = () => {
                             onClick={handleSaveSettings}
                             className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2 rounded-lg flex items-center justify-center gap-2 transition-colors"
                         >
-                            <Save size={18} /> 保存配置
+                            <Save size={18} /> 确认修改
                         </button>
                     </div>
                 </div>
@@ -149,7 +134,7 @@ const AIChat: React.FC = () => {
                 <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-indigo-500/20 scrollbar-track-transparent">
                     {messages.map((msg, idx) => (
                     <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+                        <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
                         msg.role === 'user' 
                             ? 'bg-indigo-600 text-white rounded-br-none' 
                             : 'bg-slate-800 border border-white/10 text-gray-200 rounded-bl-none'
